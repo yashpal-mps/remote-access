@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  signaling-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: capture-it-signaling
+    ports:
+      - "${SIGNALING_PORT:-3000}:${SIGNALING_PORT:-3000}"
+    env_file:
+      - ../.env
+    environment:
+      - SIGNALING_PORT=${SIGNALING_PORT:-3000}
+      - SIGNALING_HOST=${SIGNALING_HOST:-0.0.0.0}
+      - NODE_ENV=${NODE_ENV:-development}
+    restart: unless-stopped
+    networks:
+      - capture-it-network
+
+networks:
+  capture-it-network:
+    driver: bridge

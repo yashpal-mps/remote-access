@@ -1,0 +1,79 @@
+{
+  "name": "capture-it",
+  "version": "1.0.0",
+  "description": "Production-grade macOS-to-macOS remote desktop application",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:electron\"",
+    "dev:renderer": "cd renderer && npm run dev",
+    "dev:electron": "wait-on http://localhost:5173 && electron electron/main.js",
+    "electron": "electron electron/main.js",
+    "signaling": "cd signaling-server && node server.js",
+    "docker:up": "cd signaling-server && docker-compose up -d",
+    "docker:down": "cd signaling-server && docker-compose down",
+    "build": "cd renderer && npm run build",
+    "build:electron": "electron-builder",
+    "build:all": "npm run build && npm run build:electron",
+    "install:all": "npm install && cd renderer && npm install && cd ../signaling-server && npm install",
+    "rebuild:robotjs": "npx @electron/rebuild -f -w robotjs"
+  },
+  "keywords": [
+    "electron",
+    "remote-desktop",
+    "webrtc",
+    "macos"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
+    "concurrently": "^8.2.2",
+    "electron": "^28.1.0",
+    "electron-builder": "^26.8.1",
+    "electron-rebuild": "^3.2.9",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "robotjs": "^0.6.0"
+  },
+  "build": {
+    "appId": "com.captureit.remote-desktop",
+    "productName": "Capture It",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "renderer/dist/**/*",
+      "node_modules/**/*",
+      "package.json",
+      ".env"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": null,
+      "hardenedRuntime": false
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": null
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "npmRebuild": false,
+    "asar": true
+  }
+}

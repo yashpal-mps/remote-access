@@ -1,0 +1,14 @@
+{
+  "name": "signaling-server",
+  "version": "1.0.0",
+  "description": "WebSocket signaling server for WebRTC remote desktop",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0",
+    "dotenv": "^16.3.1"
+  }
+}
