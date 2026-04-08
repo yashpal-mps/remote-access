@@ -26,6 +26,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@electron/notarize": "^2.3.0",
     "@electron/rebuild": "^4.0.3",
     "concurrently": "^8.2.2",
     "electron": "^28.1.0",
@@ -53,11 +54,21 @@
     "mac": {
       "category": "public.app-category.utilities",
       "target": [
-        "dmg",
-        "zip"
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
       ],
       "icon": null,
-      "hardenedRuntime": false
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "identity": null
     },
     "win": {
       "target": [
@@ -74,6 +85,8 @@
       "category": "Utility"
     },
     "npmRebuild": false,
-    "asar": true
+    "asar": true,
+    "afterSign": "build/notarize.js",
+    "afterPack": "build/afterPack.js"
   }
 }

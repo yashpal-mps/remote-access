@@ -4,14 +4,33 @@ const robot = require('robotjs');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 let mainWindow;
-const isDevelopment = process.env.NODE_ENV !== 'production';
+
+// Check if running in production (packaged app)
+// In production, the app is inside an asar archive
+const isPackaged = __dirname.includes('app.asar');
+const isDevelopment = !isPackaged && (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === undefined);
+
+console.log('[Electron Main] __dirname:', __dirname);
+console.log('[Electron Main] isPackaged:', isPackaged);
+console.log('[Electron Main] isDevelopment:', isDevelopment);
 
 // Enable screen capture permissions on macOS
 if (process.platform === 'darwin') {
   app.whenReady().then(() => {
-    // Request screen recording permission on macOS
     const { systemPreferences } = require('electron');
-    systemPreferences.getMediaAccessStatus('screen');
+    
+    // Request screen recording permission
+    const screenStatus = systemPreferences.getMediaAccessStatus('screen');
+    console.log('[Electron Main] Screen recording permission status:', screenStatus);
+    
+    // Check accessibility permission (required for robotjs)
+    const accessibilityStatus = systemPreferences.isTrustedAccessibilityClient(false);
+    console.log('[Electron Main] Accessibility permission status:', accessibilityStatus);
+    
+    if (!accessibilityStatus) {
+      console.warn('[Electron Main] Accessibility permission not granted. Input control will not work.');
+      console.warn('[Electron Main] Please grant Accessibility permission in: System Preferences > Security & Privacy > Privacy > Accessibility');
+    }
   });
 }
 
@@ -38,7 +57,16 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     // Production: load built files
-    mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'dist', 'index.html'));
+    const indexPath = path.join(__dirname, '..', 'renderer', 'dist', 'index.html');
+    console.log('[Electron Main] Loading production file:', indexPath);
+    console.log('[Electron Main] __dirname:', __dirname);
+    
+    mainWindow.loadFile(indexPath).catch(err => {
+      console.error('[Electron Main] Failed to load file:', err);
+    });
+    
+    // Open DevTools in production for debugging (remove this in final release)
+    mainWindow.webContents.openDevTools();
   }
 
   mainWindow.on('closed', () => {
@@ -134,7 +162,14 @@ ipcMain.handle('execute-input', async (event, data) => {
       case 'keydown': {
         const key = mapKey(data.key);
         const modifiers = data.modifiers || [];
-        robot.keyTap(key, modifiers);
+        robot.keyToggle('down', key, modifiers);
+        break;
+      }
+
+      case 'keyup': {
+        const key = mapKey(data.key);
+        const modifiers = data.modifiers || [];
+        robot.keyToggle('up', key, modifiers);
         break;
       }
 
