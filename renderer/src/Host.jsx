@@ -14,6 +14,12 @@ function Host({ onBack }) {
   const localStreamRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
+  const isApprovedRef = useRef(false);
+
+  // Sync isApproved state with ref
+  useEffect(() => {
+    isApprovedRef.current = isApproved;
+  }, [isApproved]);
 
   // Load config on mount
   useEffect(() => {
@@ -135,6 +141,7 @@ function Host({ onBack }) {
 
       channel.onopen = () => {
         console.log('[Host] Data channel opened');
+        setClientConnected(true);
       };
 
       channel.onmessage = (event) => {
@@ -143,7 +150,7 @@ function Host({ onBack }) {
           console.log('[Host] Received input:', data.type);
 
           // Only process input if approved
-          if (isApproved) {
+          if (isApprovedRef.current) {
             executeInput(data);
           } else {
             console.log('[Host] Input ignored - not approved');
@@ -160,7 +167,24 @@ function Host({ onBack }) {
       channel.onclose = () => {
         console.log('[Host] Data channel closed');
         dataChannelRef.current = null;
+        setClientConnected(false);
       };
+    };
+
+    // Handle negotiation needed when adding tracks
+    pc.onnegotiationneeded = async () => {
+      console.log('[Host] Negotiation needed');
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendSignalingMessage({
+          type: 'offer',
+          offer: pc.localDescription,
+        });
+        console.log('[Host] Re-negotiation offer sent');
+      } catch (err) {
+        console.error('[Host] Error during renegotiation:', err);
+      }
     };
 
     console.log('[Host] Peer connection created');
@@ -340,9 +364,13 @@ function Host({ onBack }) {
   };
 
   const handleApproval = () => {
-    setIsApproved(!isApproved);
-    console.log('[Host] Approval toggled:', !isApproved);
+    const newState = !isApproved;
+    setIsApproved(newState);
+    console.log('[Host] Approval toggled:', newState);
   };
+
+  // Track if client is connected
+  const [clientConnected, setClientConnected] = useState(false);
 
   const handleStopHosting = () => {
     cleanup();
@@ -385,20 +413,33 @@ function Host({ onBack }) {
 
           {error && <div className="error-message">{error}</div>}
 
-          <div className="approval-container">
-            <div>
-              <div className="approval-status">Client Control</div>
-              <p className="info-text">
-                {isApproved ? 'Client has control' : 'Client control disabled'}
-              </p>
+          {clientConnected && (
+            <div className="approval-container" style={{ background: 'var(--accent-primary)', color: 'white' }}>
+              <div>
+                <div className="approval-status">Client Connected!</div>
+                <p className="info-text" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                  {isApproved ? 'Client can control your computer' : 'Click "Grant Access" to allow control'}
+                </p>
+              </div>
+              <button
+                className={`btn ${isApproved ? 'btn-danger' : 'btn-success'}`}
+                onClick={handleApproval}
+              >
+                {isApproved ? 'Revoke Access' : 'Grant Access'}
+              </button>
             </div>
-            <button
-              className={`btn ${isApproved ? 'btn-danger' : 'btn-success'}`}
-              onClick={handleApproval}
-            >
-              {isApproved ? 'Revoke Access' : 'Grant Access'}
-            </button>
-          </div>
+          )}
+
+          {!clientConnected && (
+            <div className="approval-container">
+              <div>
+                <div className="approval-status">Waiting for Client</div>
+                <p className="info-text">
+                  Share the Session ID above with the client
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="controls-container">
             <div

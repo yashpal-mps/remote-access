@@ -6,6 +6,7 @@ function Client({ onBack }) {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [error, setError] = useState('');
   const [config, setConfig] = useState(null);
+  const [videoConnected, setVideoConnected] = useState(false);
 
   const videoRef = useRef(null);
   const peerConnectionRef = useRef(null);
@@ -132,6 +133,11 @@ function Client({ onBack }) {
       console.log('[Client] Remote stream received');
       if (videoRef.current) {
         videoRef.current.srcObject = event.streams[0];
+        setVideoConnected(true);
+        // Auto-play the video
+        videoRef.current.play().catch(err => {
+          console.error('[Client] Failed to play video:', err);
+        });
       }
     };
 
@@ -221,6 +227,11 @@ function Client({ onBack }) {
             console.log('[Client] Joined session:', message.sessionId);
             break;
 
+          case 'offer':
+            // Handle renegotiation offers from host
+            await handleOffer(message);
+            break;
+
           case 'answer':
             await handleAnswer(message);
             break;
@@ -285,6 +296,35 @@ function Client({ onBack }) {
     });
 
     console.log('[Client] Offer created and sent');
+  };
+
+  const handleOffer = async (message) => {
+    try {
+      console.log('[Client] Handling renegotiation offer');
+      const pc = peerConnectionRef.current;
+
+      if (!pc) {
+        console.error('[Client] No peer connection');
+        return;
+      }
+
+      await pc.setRemoteDescription(new RTCSessionDescription(message.offer));
+
+      // Create answer
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      // Send answer
+      sendSignalingMessage({
+        type: 'answer',
+        answer: pc.localDescription,
+      });
+
+      console.log('[Client] Renegotiation answer sent');
+    } catch (err) {
+      console.error('[Client] Error handling offer:', err);
+      setError('Failed to handle renegotiation offer: ' + err.message);
+    }
   };
 
   const handleAnswer = async (message) => {
@@ -474,7 +514,24 @@ function Client({ onBack }) {
         </div>
       ) : (
         <div className="video-container">
-          <video ref={videoRef} autoPlay playsInline muted />
+          {!videoConnected && (
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              textAlign: 'center',
+              color: 'var(--text-secondary)',
+              zIndex: 10
+            }}>
+              <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
+              <p>Waiting for video stream...</p>
+              <p style={{ fontSize: '14px', marginTop: '8px' }}>
+                Make sure host has granted screen recording permission
+              </p>
+            </div>
+          )}
+          <video ref={videoRef} autoPlay playsInline muted style={{ opacity: videoConnected ? 1 : 0 }} />
 
           <div
             ref={inputCaptureRef}
